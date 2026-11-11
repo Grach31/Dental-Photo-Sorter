@@ -4,13 +4,14 @@ import subprocess
 from pathlib import Path
 
 JPEG = {".jpg", ".jpeg"}
+HEIC = {".heic", ".heif"}
 RAW = {".cr2", ".cr3", ".nef", ".dng", ".tif", ".tiff"}
 
 def preview_bytes(path: Path, exiftool: str = "exiftool") -> bytes | None:
     """Return JPEG bytes, or an embedded RAW preview if available."""
     if path.suffix.lower() in JPEG:
         return path.read_bytes()
-    if path.suffix.lower() not in RAW:
+    if path.suffix.lower() not in RAW | HEIC:
         return None
     for tag in ("-PreviewImage", "-JpgFromRaw", "-ThumbnailImage"):
         try:
@@ -20,7 +21,7 @@ def preview_bytes(path: Path, exiftool: str = "exiftool") -> bytes | None:
                 timeout=40, check=True,
             )
         except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
-            return None
+            continue
         if result.stdout.startswith(b"\xff\xd8\xff"):
             return result.stdout
     return None
