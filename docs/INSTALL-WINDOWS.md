@@ -12,6 +12,9 @@ Extract the ZIP to a local folder and run DentalPhotoSorter.exe.
 
 The EXE currently does not bundle ExifTool or Tesseract. Without ExifTool the photo preview cannot read timestamps; without Tesseract you can still manually enter the schedule.
 
+## Проверка компонентов
+Во вкладке «Синхронизация» нажми «Проверить ExifTool и Tesseract». Оба инструмента должны определяться в PATH. Это диагностическая проверка, не установка.
+
 ## Workflow
 1. Set the clinic, date, destination folder, and camera clock correction.
 2. Enter a verified schedule, one line per appointment: `09:00-10:00 Patient 001`.
@@ -19,6 +22,7 @@ The EXE currently does not bundle ExifTool or Tesseract. Without ExifTool the ph
 4. Select the SD card's DCIM folder; click **Проверить распределение**.
 5. Review all assignments and choose **Не определено** for uncertain files.
 6. Confirm copying. Sources are never deleted.
+7. Open the «Архив» tab to search visits, verify SHA-256 checksums, export CSV or back up the SQLite database. A database backup does not include photo files.
 
 ## Data and sync
 The local SQLite database lives in `Documents/DentalPhotoSorter/index.sqlite` and photos are copied to the chosen archive directory. Back up both. No synchronization exists yet. Never put the SQLite database into a generic shared sync folder. The program does not yet encrypt local photos or databases; use approved workstation and full-disk encryption controls.
