@@ -218,3 +218,20 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Dental Photo Sorter — sensitive local data
+*.db
+*.sqlite
+*.sqlite3
+*.sqlite-*
+patient_data/
+imports/
+exports/
+*.jpg
+*.jpeg
+*.png
+*.heic
+*.nef
+*.cr2
+*.cr3
+*.dng
