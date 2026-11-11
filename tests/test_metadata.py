@@ -41,3 +41,18 @@ def test_scan_filters_formats(tmp_path):
     (tmp_path / "b.NEF").write_bytes(b"")
     (tmp_path / "notes.txt").write_text("x")
     assert len(scan_folder(tmp_path)) == 2
+
+def test_large_card_uses_batched_exif(tmp_path):
+    from unittest.mock import patch
+    files = [tmp_path / f"image_{i:03d}.jpg" for i in range(165)]
+    for file in files:
+        file.write_bytes(b"x")
+    def fake_run(args, **kwargs):
+        batch = [Path(item) for item in args if str(item).endswith(".jpg")]
+        payload = [{"SourceFile": str(path), "DateTimeOriginal": "2026:11:11 09:00:00"} for path in batch]
+        return subprocess.CompletedProcess(args, 0, json.dumps(payload), "")
+    with patch("dental_photo_sorter.core.subprocess.run", side_effect=fake_run) as mocked:
+        result = read_metadata(files)
+    assert mocked.call_count == 3
+    assert len(result) == 165
+    assert all(item.captured for item in result)
