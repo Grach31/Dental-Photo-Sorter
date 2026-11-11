@@ -32,6 +32,7 @@ class MainWindow(QMainWindow):
         self.appointments = []
         self.source = None
         self.preview_signature = None
+        self.file_snapshot = []
         self.db = connect(APP_DIR / "index.sqlite")
         self.tabs = QTabWidget()
         self.setCentralWidget(self.tabs)
@@ -203,6 +204,7 @@ class MainWindow(QMainWindow):
             self.photos = []
             self.table.setRowCount(0)
             self.preview_signature = None
+            self.file_snapshot = []
             self.source = Path(folder)
             self.status.setText(f"Выбрана папка: {folder}")
 
@@ -212,6 +214,7 @@ class MainWindow(QMainWindow):
         try:
             self.photos = []
             self.preview_signature = None
+            self.file_snapshot = []
             self.table.setRowCount(0)
             self.appointments = parse_schedule(self.schedule.toPlainText(), self.date.date().toString("yyyy-MM-dd"))
             require_unique_appointments(self.appointments)
@@ -220,6 +223,7 @@ class MainWindow(QMainWindow):
             if not paths:
                 raise ValueError("В выбранной папке нет поддерживаемых фотографий.")
             self.photos = read_metadata(paths, offset_minutes=self.offset.value())
+            self.file_snapshot = [(p.path, p.path.stat().st_size, p.path.stat().st_mtime_ns) for p in self.photos]
             self.preview_signature = (self.schedule.toPlainText(), self.date.date().toString("yyyy-MM-dd"), self.offset.value(), self.clinic.text(), self.dest.text())
             self.table.setRowCount(len(self.photos))
             uncertain = 0
@@ -266,6 +270,14 @@ class MainWindow(QMainWindow):
             return self.error("Исходная папка больше не доступна.")
         if self.preview_signature != (self.schedule.toPlainText(), self.date.date().toString("yyyy-MM-dd"), self.offset.value(), self.clinic.text(), self.dest.text()):
             return self.error("Настройки изменились после проверки. Нажми «Проверить распределение» ещё раз.")
+        try:
+            if len(self.file_snapshot) != len(self.photos) or any(
+                not path.is_file() or path.stat().st_size != size or path.stat().st_mtime_ns != modified
+                for path, size, modified in self.file_snapshot
+            ):
+                return self.error("Файлы на карте изменились после проверки. Проверь распределение заново.")
+        except OSError as exc:
+            return self.error(f"SD-карта недоступна: {exc}")
         chosen = [(photo, self.table.cellWidget(i, 3).currentData()) for i, photo in enumerate(self.photos)]
         selected = [(photo, index) for photo, index in chosen if index is not None]
         if not selected:
