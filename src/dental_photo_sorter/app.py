@@ -153,7 +153,10 @@ class MainWindow(QMainWindow):
             for photo, index in selected:
                 appt = self.appointments[index]
                 day = appt.start.strftime("%Y-%m-%d")
-                destination = Path(self.dest.text()) / safe_name(self.clinic.text()) / day / safe_name(f"{appt.start:%H-%M}_{appt.name}")
+                archive_root = Path(self.dest.text()).expanduser().resolve()
+                if not self.dest.text().strip() or archive_root == self.source.resolve() or self.source.resolve() in archive_root.parents:
+                    raise ValueError("Архив нельзя размещать внутри папки исходных фотографий.")
+                destination = archive_root / safe_name(self.clinic.text()) / day / safe_name(f"{appt.start:%H-%M}_{appt.name}")
                 target, digest = copy_verified(photo, destination)
                 # A visit is identified by clinic/date/start/name locally; no cross-device identity inference.
                 visit_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"{self.clinic.text()}|{appt.start.isoformat()}|{appt.name}"))
