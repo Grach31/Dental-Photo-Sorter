@@ -1,10 +1,13 @@
 """Offline environment diagnostics for the Windows prototype."""
 from __future__ import annotations
 import shutil
+import sys
+from pathlib import Path
 import subprocess
 
 def check_tool(command: str, arguments: list[str]) -> tuple[bool, str]:
-    executable = shutil.which(command)
+    bundled = Path(getattr(sys, "_MEIPASS", "")) / "exiftool" / "exiftool.exe" if command == "exiftool" else None
+    executable = str(bundled) if bundled is not None and bundled.is_file() else shutil.which(command)
     if not executable:
         return False, f"{command}: не найден в PATH"
     try:
