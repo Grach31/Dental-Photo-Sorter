@@ -1,6 +1,6 @@
 """Windows desktop UI: local import with mandatory confirmation."""
 from __future__ import annotations
-import sqlite3
+import os
 import sys
 import uuid
 from datetime import datetime
@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QDateEdit, QFileDialog, QFormLayout,
     QHBoxLayout, QLabel, QLineEdit, QMainWindow, QMessageBox, QPushButton,
     QSpinBox, QTableWidget, QTableWidgetItem, QTabWidget, QTextEdit, QVBoxLayout,
-    QWidget, QInputDialog,
+    QWidget,
 )
 from .core import parse_schedule, scan_folder, read_metadata, match, safe_name, copy_verified
 from .database import connect
@@ -21,7 +21,7 @@ from .validation import validate_paths, require_unique_appointments
 from .archive import list_visits, list_photos, verify_archive, export_manifest, backup_database
 from .diagnostics import diagnostics
 
-APP_DIR = Path.home() / "Documents" / "DentalPhotoSorter"
+APP_DIR = Path(os.environ.get("DENTAL_PHOTO_SORTER_HOME", str(Path.home() / "Documents" / "DentalPhotoSorter")))
 
 class MainWindow(QMainWindow):
     def __init__(self):
