@@ -99,8 +99,14 @@ def copy_verified(photo: Photo, destination: Path) -> tuple[Path, str]:
         if sha256(target) == digest:
             return target, digest
         target = destination / f"{photo.path.stem}_{digest[:12]}{photo.path.suffix}"
-    if target.exists() and sha256(target) == digest:
-        return target, digest
+    if target.exists():
+        if sha256(target) == digest:
+            return target, digest
+        target = destination / f"{photo.path.stem}_{digest}{photo.path.suffix}"
+        if target.exists():
+            if sha256(target) == digest:
+                return target, digest
+            raise FileExistsError(f"Conflicting archive file: {target}")
     temp = destination / f".{uuid.uuid4().hex}.partial"
     try:
         shutil.copy2(photo.path, temp)
