@@ -24,3 +24,17 @@ def test_copy_keeps_source(tmp_path):
 
 def test_sanitization():
     assert safe_name('A/B:C') == 'A_B_C'
+
+def test_collision_does_not_overwrite(tmp_path):
+    first = tmp_path / "card1" / "IMG.jpg"
+    second = tmp_path / "card2" / "IMG.jpg"
+    first.parent.mkdir()
+    second.parent.mkdir()
+    first.write_bytes(b"first")
+    second.write_bytes(b"second")
+    destination = tmp_path / "archive"
+    a, _ = copy_verified(Photo(first, None), destination)
+    b, _ = copy_verified(Photo(second, None), destination)
+    assert a != b
+    assert a.read_bytes() == b"first"
+    assert b.read_bytes() == b"second"
