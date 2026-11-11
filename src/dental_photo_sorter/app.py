@@ -130,8 +130,8 @@ class MainWindow(QMainWindow):
         results = diagnostics()
         QMessageBox.information(
             self, "Проверка компонентов",
-            "\\n".join(("✓ " if ok else "✗ ") + message for ok, message in results)
-            + "\\nExifTool нужен для времени съёмки и RAW; Tesseract — для OCR."
+            "\n".join(("✓ " if ok else "✗ ") + message for ok, message in results)
+            + "\nExifTool нужен для времени съёмки и RAW; Tesseract — для OCR."
         )
 
     def refresh_archive(self, *_):
