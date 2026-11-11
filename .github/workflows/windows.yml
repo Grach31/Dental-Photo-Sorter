@@ -19,6 +19,11 @@ jobs:
         run: python -m compileall -q src tests
       - name: Run tests
         run: python -m pytest -q
+      - name: Qt offscreen GUI and archive tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          python -m pytest -q
       - name: Build portable executable
         run: pyinstaller --noconfirm --onefile --windowed --name DentalPhotoSorter --paths src src/dental_photo_sorter/__main__.py
       - name: Verify bundled app can import
@@ -30,7 +35,7 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
-          python -c "import sys; sys.path.insert(0, 'src'); from PySide6.QtWidgets import QApplication; from dental_photo_sorter.app import MainWindow; app=QApplication([]); w=MainWindow(); assert w.tabs.count()==2; w.close(); print('GUI smoke OK')"
+          python -c "import sys; sys.path.insert(0, 'src'); from PySide6.QtWidgets import QApplication; from dental_photo_sorter.app import MainWindow; app=QApplication([]); w=MainWindow(); assert w.tabs.count()==3; w.close(); print('GUI smoke OK')"
       - name: Upload Windows executable
         uses: actions/upload-artifact@v4
         with:
