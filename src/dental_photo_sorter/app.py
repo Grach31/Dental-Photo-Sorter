@@ -6,6 +6,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QDateEdit, QFileDialog, QFormLayout,
     QHBoxLayout, QLabel, QLineEdit, QMainWindow, QMessageBox, QPushButton,
@@ -71,6 +72,11 @@ class MainWindow(QMainWindow):
         self.table.setHorizontalHeaderLabels(["Файл", "Время съёмки", "Камера", "Назначение (можно изменить)"])
         self.table.horizontalHeader().setStretchLastSection(True)
         layout.addWidget(self.table)
+        self.image_preview = QLabel("Выбери фотографию в таблице для просмотра JPG")
+        self.image_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.image_preview.setMinimumHeight(180)
+        layout.addWidget(self.image_preview)
+        self.table.itemSelectionChanged.connect(self.show_photo)
         self.tabs.addTab(main, "Импорт")
 
         settings = QWidget()
@@ -113,6 +119,8 @@ class MainWindow(QMainWindow):
         try:
             self.appointments = parse_schedule(self.schedule.toPlainText(), self.date.date().toString("yyyy-MM-dd"))
             paths = scan_folder(self.source)
+            if not paths:
+                raise ValueError("В выбранной папке нет поддерживаемых фотографий.")
             self.photos = read_metadata(paths, offset_minutes=self.offset.value())
             self.preview_signature = (self.schedule.toPlainText(), self.date.date().toString("yyyy-MM-dd"), self.offset.value(), self.clinic.text(), self.dest.text())
             self.table.setRowCount(len(self.photos))
@@ -135,6 +143,21 @@ class MainWindow(QMainWindow):
             self.status.setText(f"Найдено {len(self.photos)} фото; требуют проверки {uncertain}. Проверь каждую группу перед копированием.")
         except Exception as exc:
             self.error(exc)
+
+    def show_photo(self):
+        row = self.table.currentRow()
+        if row < 0 or row >= len(self.photos):
+            self.image_preview.setText("Фотография не выбрана")
+            return
+        photo = self.photos[row]
+        if photo.path.suffix.lower() not in (".jpg", ".jpeg", ".png"):
+            self.image_preview.setText("Предпросмотр RAW пока недоступен. Проверь имя и время.")
+            return
+        pixmap = QPixmap(str(photo.path))
+        if pixmap.isNull():
+            self.image_preview.setText("Не удалось открыть изображение")
+            return
+        self.image_preview.setPixmap(pixmap.scaled(760, 220, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
 
     def import_photos(self):
         if not self.photos or self.table.rowCount() != len(self.photos):
