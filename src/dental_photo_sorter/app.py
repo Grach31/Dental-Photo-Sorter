@@ -35,7 +35,8 @@ class MainWindow(QMainWindow):
         self.clinic = QLineEdit("Кабинет 1")
         self.date = QDateEdit()
         self.date.setCalendarPopup(True)
-        self.date.setDate(datetime.now().date())
+        from PySide6.QtCore import QDate
+        self.date.setDate(QDate.currentDate())
         self.offset = QSpinBox()
         self.offset.setRange(-1440, 1440)
         self.offset.setSuffix(" мин")
@@ -113,7 +114,7 @@ class MainWindow(QMainWindow):
             self.appointments = parse_schedule(self.schedule.toPlainText(), self.date.date().toString("yyyy-MM-dd"))
             paths = scan_folder(self.source)
             self.photos = read_metadata(paths, offset_minutes=self.offset.value())
-            self.table.setRowCount(len(self.photos))
+            self.preview_signature = (self.schedule.toPlainText(), self.date.date().toString("yyyy-MM-dd"), self.offset.value(), self.clinic.text(), self.dest.text())\n            self.table.setRowCount(len(self.photos))
             uncertain = 0
             for row, photo in enumerate(self.photos):
                 index = match(photo, self.appointments)
@@ -137,7 +138,7 @@ class MainWindow(QMainWindow):
     def import_photos(self):
         if not self.photos or self.table.rowCount() != len(self.photos):
             return self.error("Сначала проверь распределение.")
-        chosen = [(photo, self.table.cellWidget(i, 3).currentData()) for i, photo in enumerate(self.photos)]
+        if self.preview_signature != (self.schedule.toPlainText(), self.date.date().toString("yyyy-MM-dd"), self.offset.value(), self.clinic.text(), self.dest.text()):\n            return self.error("Настройки изменились после проверки. Нажми «Проверить распределение» ещё раз.")\n        chosen = [(photo, self.table.cellWidget(i, 3).currentData()) for i, photo in enumerate(self.photos)]
         selected = [(photo, index) for photo, index in chosen if index is not None]
         if not selected:
             return self.error("Нет назначенных фотографий.")
@@ -156,7 +157,7 @@ class MainWindow(QMainWindow):
                 target, digest = copy_verified(photo, destination)
                 # A visit is identified by clinic/date/start/name locally; no cross-device identity inference.
                 visit_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"{self.clinic.text()}|{appt.start.isoformat()}|{appt.name}"))
-                patient_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"local|{self.clinic.text()}|{appt.name}"))
+                patient_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"local-visit|{visit_id}"))
                 now = datetime.now().isoformat()
                 with self.db:
                     self.db.execute("INSERT OR IGNORE INTO patients VALUES (?, ?, ?)", (patient_id, appt.name, now))
