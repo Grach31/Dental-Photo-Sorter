@@ -28,14 +28,16 @@ jobs:
           python -c "import sys; sys.path.insert(0, 'src'); from dental_photo_sorter.app import MainWindow; print('UI import OK')"
           if (!(Test-Path 'dist/DentalPhotoSorter.exe')) { throw 'Missing executable' }
           if ((Get-Item 'dist/DentalPhotoSorter.exe').Length -lt 1000000) { throw 'Executable unexpectedly small' }
-      - name: Headless GUI smoke test
+      - name: Smoke-test the actual packaged EXE
         env:
           QT_QPA_PLATFORM: offscreen
+          DENTAL_PHOTO_SORTER_HOME: ${{ runner.temp }}\\dental-photo-sorter-smoke
         run: |
-          python -c "import sys; sys.path.insert(0, 'src'); from PySide6.QtWidgets import QApplication; from dental_photo_sorter.app import MainWindow; app=QApplication([]); w=MainWindow(); assert w.tabs.count()==3; w.close(); print('GUI smoke OK')"
+          & .\\dist\\DentalPhotoSorter.exe --self-test
+          if ($LASTEXITCODE -ne 0) { throw "Packaged executable failed self-test: $LASTEXITCODE" }
       - name: Upload Windows executable
         uses: actions/upload-artifact@v4
         with:
           name: DentalPhotoSorter-Windows
           path: dist/DentalPhotoSorter.exe
-          retention-days: 30
+          retention-days: 90
