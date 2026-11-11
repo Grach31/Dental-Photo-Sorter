@@ -139,7 +139,9 @@ class MainWindow(QMainWindow):
     def import_photos(self):
         if not self.photos or self.table.rowCount() != len(self.photos):
             return self.error("Сначала проверь распределение.")
-        if self.preview_signature != (self.schedule.toPlainText(), self.date.date().toString("yyyy-MM-dd"), self.offset.value(), self.clinic.text(), self.dest.text()):\n            return self.error("Настройки изменились после проверки. Нажми «Проверить распределение» ещё раз.")\n        chosen = [(photo, self.table.cellWidget(i, 3).currentData()) for i, photo in enumerate(self.photos)]
+        if self.preview_signature != (self.schedule.toPlainText(), self.date.date().toString("yyyy-MM-dd"), self.offset.value(), self.clinic.text(), self.dest.text()):
+            return self.error("Настройки изменились после проверки. Нажми «Проверить распределение» ещё раз.")
+        chosen = [(photo, self.table.cellWidget(i, 3).currentData()) for i, photo in enumerate(self.photos)]
         selected = [(photo, index) for photo, index in chosen if index is not None]
         if not selected:
             return self.error("Нет назначенных фотографий.")
