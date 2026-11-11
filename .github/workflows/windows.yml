@@ -21,23 +21,18 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: python -m pytest -q
-      - name: Download official ExifTool Windows distribution
+      - name: Install ExifTool from Chocolatey package repository
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $page = Invoke-WebRequest -Uri 'https://exiftool.org/' -UseBasicParsing
-          $match = [regex]::Match($page.Content, 'exiftool-[0-9.]+_64\.zip')
-          if (-not $match.Success) { throw 'ExifTool Windows archive not found on official website' }
-          $url = 'https://downloads.sourceforge.net/project/exiftool/' + $match.Value
-          Invoke-WebRequest -Uri $url -OutFile exiftool.zip -MaximumRedirection 10
-          $zip = [System.IO.File]::ReadAllBytes((Resolve-Path exiftool.zip))
-          if ($zip.Length -lt 100000 -or $zip[0] -ne 80 -or $zip[1] -ne 75) { throw "ExifTool download is not a ZIP: $url" }
-          Expand-Archive -Path exiftool.zip -DestinationPath exiftool-unpacked -ErrorAction Stop
-          $binary = Get-ChildItem exiftool-unpacked -Recurse -Filter 'exiftool(-k).exe' | Select-Object -First 1
-          if (-not $binary) { throw 'ExifTool executable missing from archive' }
+          choco install exiftool -y --no-progress
+          $binary = Get-ChildItem 'C:\ProgramData\chocolatey\lib\exiftool' -Recurse -File -Filter 'exiftool*.exe' | Select-Object -First 1
+          if (-not $binary) { throw 'ExifTool executable missing from Chocolatey package' }
           New-Item -ItemType Directory -Path bundled-exiftool -Force | Out-Null
           Copy-Item -Path (Join-Path $binary.DirectoryName '*') -Destination bundled-exiftool -Recurse -Force
-          if (Test-Path 'bundled-exiftool/exiftool(-k).exe') { Rename-Item 'bundled-exiftool/exiftool(-k).exe' 'exiftool.exe' }
+          $target = Get-ChildItem bundled-exiftool -Filter 'exiftool*.exe' | Select-Object -First 1
+          if (-not $target) { throw 'ExifTool executable missing after copy' }
+          Rename-Item -LiteralPath $target.FullName -NewName 'exiftool.exe'
           & .\bundled-exiftool\exiftool.exe -ver
           if ($LASTEXITCODE -ne 0) { throw 'ExifTool cannot execute' }
       - name: Build portable executable
