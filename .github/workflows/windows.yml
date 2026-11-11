@@ -21,9 +21,26 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: python -m pytest -q
+      - name: Download official ExifTool Windows distribution
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $page = Invoke-WebRequest -Uri 'https://exiftool.org/' -UseBasicParsing
+          $match = [regex]::Match($page.Content, 'exiftool-[0-9.]+_64\\.zip')
+          if (-not $match.Success) { throw 'ExifTool Windows archive not found on official website' }
+          $url = 'https://exiftool.org/' + $match.Value
+          Invoke-WebRequest -Uri $url -OutFile exiftool.zip
+          Expand-Archive -Path exiftool.zip -DestinationPath exiftool-unpacked
+          $binary = Get-ChildItem exiftool-unpacked -Recurse -Filter 'exiftool(-k).exe' | Select-Object -First 1
+          if (-not $binary) { throw 'ExifTool executable missing from archive' }
+          New-Item -ItemType Directory -Path bundled-exiftool -Force | Out-Null
+          Copy-Item -Path (Join-Path $binary.DirectoryName '*') -Destination bundled-exiftool -Recurse -Force
+          if (Test-Path 'bundled-exiftool/exiftool(-k).exe') { Rename-Item 'bundled-exiftool/exiftool(-k).exe' 'exiftool.exe' }
+          & .\\bundled-exiftool\\exiftool.exe -ver
+          if ($LASTEXITCODE -ne 0) { throw 'ExifTool cannot execute' }
       - name: Build portable executable
         if: always()
-        run: pyinstaller --noconfirm --onefile --windowed --name DentalPhotoSorter --paths src --collect-all pillow_heif --collect-all PIL src/dental_photo_sorter/__main__.py
+        run: pyinstaller --noconfirm --onefile --windowed --name DentalPhotoSorter --paths src --collect-all pillow_heif --collect-all PIL --add-data "bundled-exiftool;exiftool" src/dental_photo_sorter/__main__.py
       - name: Verify bundled app can import
         run: |
           python -c "import sys; sys.path.insert(0, 'src'); from dental_photo_sorter.app import MainWindow; print('UI import OK')"
