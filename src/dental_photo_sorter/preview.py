@@ -1,6 +1,7 @@
 """Generate local previews without modifying camera originals."""
 from __future__ import annotations
 import subprocess
+import sys
 from pathlib import Path
 
 JPEG = {".jpg", ".jpeg"}
@@ -9,6 +10,10 @@ RAW = {".cr2", ".cr3", ".nef", ".dng", ".tif", ".tiff"}
 
 def preview_bytes(path: Path, exiftool: str = "exiftool") -> bytes | None:
     """Return JPEG bytes, or an embedded RAW preview if available."""
+    if exiftool == "exiftool":
+        bundled = Path(getattr(sys, "_MEIPASS", "")) / "exiftool" / "exiftool.exe"
+        if bundled.is_file():
+            exiftool = str(bundled)
     if path.suffix.lower() in JPEG:
         return path.read_bytes()
     if path.suffix.lower() not in RAW | HEIC:
