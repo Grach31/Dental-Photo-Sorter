@@ -1,9 +1,7 @@
 """Local archive browsing, integrity verification and offline backup."""
 from __future__ import annotations
 import csv
-import shutil
 import sqlite3
-from datetime import datetime
 from pathlib import Path
 from .core import sha256
 
@@ -49,7 +47,9 @@ def export_manifest(db: sqlite3.Connection, output: Path) -> int:
     with output.open("w", encoding="utf-8-sig", newline="") as stream:
         writer = csv.writer(stream)
         writer.writerow(["patient", "clinic", "visit", "filename", "captured", "path", "sha256"])
-        writer.writerows(rows)
+        for row in rows:
+            # Prevent spreadsheet formula execution on CSV open.
+            writer.writerow(["'" + value if isinstance(value, str) and value.lstrip().startswith(("=", "+", "-", "@")) else value for value in row])
     return len(rows)
 
 def backup_database(db: sqlite3.Connection, destination: Path) -> Path:
