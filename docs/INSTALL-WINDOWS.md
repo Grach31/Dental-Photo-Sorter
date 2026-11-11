@@ -6,6 +6,15 @@
 Open GitHub Actions > Windows build > latest successful run > Artifacts > DentalPhotoSorter-Windows.
 Extract the ZIP to a local folder and run DentalPhotoSorter.exe.
 
+**For a first trial:** Download the newest workflow artifact even if the run is marked failed, provided the artifact exists. The workflow attempts to upload the EXE independently of the test result. This is an **unsigned experimental build**; Windows SmartScreen may warn. Do not bypass organization security policies. Test with synthetic photos first.
+
+To check the executable without opening the UI, run in PowerShell:
+```powershell
+.\\DentalPhotoSorter.exe --self-test
+$LASTEXITCODE
+```
+Exit code 0 indicates the packaged UI initialized successfully (not a complete camera workflow test).
+
 ## External free tools (required for current prototype)
 - ExifTool from https://exiftool.org/ (Windows: rename exiftool(-k).exe to exiftool.exe and add its directory to PATH).
 - Tesseract OCR from https://github.com/UB-Mannheim/tesseract/wiki (install Russian and English language data, add installation directory to PATH).
