@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 
-EXTENSIONS = {".jpg", ".jpeg", ".cr2", ".cr3", ".nef", ".dng", ".tif", ".tiff"}
+EXTENSIONS = {".jpg", ".jpeg", ".heic", ".heif", ".cr2", ".cr3", ".nef", ".dng", ".tif", ".tiff"}
 EXIF_FORMAT = "%Y:%m:%d %H:%M:%S"
 
 @dataclass(frozen=True)
