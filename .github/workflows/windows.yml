@@ -26,7 +26,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $page = Invoke-WebRequest -Uri 'https://exiftool.org/' -UseBasicParsing
-          $match = [regex]::Match($page.Content, 'exiftool-[0-9.]+_64\\.zip')
+          $match = [regex]::Match($page.Content, 'exiftool-[0-9.]+_64\.zip')
           if (-not $match.Success) { throw 'ExifTool Windows archive not found on official website' }
           $url = 'https://exiftool.org/' + $match.Value
           Invoke-WebRequest -Uri $url -OutFile exiftool.zip
@@ -36,7 +36,7 @@ jobs:
           New-Item -ItemType Directory -Path bundled-exiftool -Force | Out-Null
           Copy-Item -Path (Join-Path $binary.DirectoryName '*') -Destination bundled-exiftool -Recurse -Force
           if (Test-Path 'bundled-exiftool/exiftool(-k).exe') { Rename-Item 'bundled-exiftool/exiftool(-k).exe' 'exiftool.exe' }
-          & .\\bundled-exiftool\\exiftool.exe -ver
+          & .\bundled-exiftool\exiftool.exe -ver
           if ($LASTEXITCODE -ne 0) { throw 'ExifTool cannot execute' }
       - name: Build portable executable
         if: always()
@@ -49,9 +49,9 @@ jobs:
       - name: Smoke-test the actual packaged EXE
         env:
           QT_QPA_PLATFORM: offscreen
-          DENTAL_PHOTO_SORTER_HOME: ${{ runner.temp }}\\dental-photo-sorter-smoke
+          DENTAL_PHOTO_SORTER_HOME: ${{ runner.temp }}\dental-photo-sorter-smoke
         run: |
-          & .\\dist\\DentalPhotoSorter.exe --self-test
+          & .\dist\DentalPhotoSorter.exe --self-test
           if ($LASTEXITCODE -ne 0) { throw "Packaged executable failed self-test: $LASTEXITCODE" }
       - name: Upload Windows executable
         if: always()
