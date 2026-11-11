@@ -46,20 +46,26 @@ def parse_schedule(text: str, day: str) -> list[Appointment]:
     return result
 
 def read_metadata(paths: list[Path], exiftool: str = "exiftool", offset_minutes: int = 0) -> list[Photo]:
+    """Read EXIF in batches to avoid Windows command-line length limits."""
     if not paths:
         return []
-    try:
-        proc = subprocess.run(
-            [exiftool, "-json", "-DateTimeOriginal", "-CreateDate", "-Model", *map(str, paths)],
-            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180, check=True,
-        )
-    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
-        raise RuntimeError("ExifTool не найден или не смог прочитать фотографии. Установи ExifTool.") from exc
-    entries = json.loads(proc.stdout)
-    by_path = {str(Path(e['SourceFile']).resolve()).lower(): e for e in entries if e.get('SourceFile')}
+    by_path = {}
+    for begin in range(0, len(paths), 80):
+        batch = paths[begin:begin + 80]
+        try:
+            proc = subprocess.run(
+                [exiftool, "-json", "-DateTimeOriginal", "-CreateDate", "-Model", *map(str, batch)],
+                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180, check=True,
+            )
+            entries = json.loads(proc.stdout)
+        except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired, ValueError) as exc:
+            raise RuntimeError("ExifTool не найден или не смог прочитать фотографии. Проверь установку ExifTool.") from exc
+        for entry in entries:
+            if entry.get("SourceFile"):
+                by_path[str(Path(entry["SourceFile"]).resolve()).casefold()] = entry
     result = []
     for path in paths:
-        entry = by_path.get(str(path.resolve()).lower(), {})
+        entry = by_path.get(str(path.resolve()).casefold(), {})
         value = entry.get("DateTimeOriginal") or entry.get("CreateDate")
         captured = None
         if value:
@@ -71,7 +77,7 @@ def read_metadata(paths: list[Path], exiftool: str = "exiftool", offset_minutes:
     return result
 
 def scan_folder(folder: Path) -> list[Path]:
-    return sorted(p for p in folder.rglob("*") if p.is_file() and p.suffix.lower() in EXTENSIONS)
+    return sorted(p for p in folder.rglob("*") if p.is_file() and not p.is_symlink() and p.suffix.lower() in EXTENSIONS)
 
 def match(photo: Photo, appointments: list[Appointment]) -> int | None:
     if photo.captured is None:
