@@ -23,3 +23,15 @@ def test_unsupported_preview(tmp_path):
     file = tmp_path / "notes.txt"
     file.write_bytes(b"notes")
     assert preview_bytes(file) is None
+
+def test_heic_discovered(tmp_path):
+    from dental_photo_sorter.core import scan_folder
+    heic = tmp_path / "IMG_5382.HEIC"
+    heic.write_bytes(b"synthetic")
+    assert scan_folder(tmp_path) == [heic]
+
+def test_heic_embedded_fallback(tmp_path):
+    heic = tmp_path / "IMG_5382.HEIC"
+    heic.write_bytes(b"not a valid HEIC")
+    with patch("dental_photo_sorter.preview.subprocess.run", return_value=subprocess.CompletedProcess([], 0, bytes([255,216,255]) + b"preview", b"")):
+        assert preview_bytes(heic) == bytes([255,216,255]) + b"preview"
