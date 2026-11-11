@@ -56,8 +56,10 @@ def read_metadata(paths: list[Path], exiftool: str = "exiftool", offset_minutes:
     except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
         raise RuntimeError("ExifTool не найден или не смог прочитать фотографии. Установи ExifTool.") from exc
     entries = json.loads(proc.stdout)
+    by_path = {str(Path(e['SourceFile']).resolve()).lower(): e for e in entries if e.get('SourceFile')}
     result = []
-    for path, entry in zip(paths, entries):
+    for path in paths:
+        entry = by_path.get(str(path.resolve()).lower(), {})
         value = entry.get("DateTimeOriginal") or entry.get("CreateDate")
         captured = None
         if value:
