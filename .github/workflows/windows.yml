@@ -22,6 +22,7 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         run: python -m pytest -q
       - name: Build portable executable
+        if: always()
         run: pyinstaller --noconfirm --onefile --windowed --name DentalPhotoSorter --paths src src/dental_photo_sorter/__main__.py
       - name: Verify bundled app can import
         run: |
@@ -36,8 +37,10 @@ jobs:
           & .\\dist\\DentalPhotoSorter.exe --self-test
           if ($LASTEXITCODE -ne 0) { throw "Packaged executable failed self-test: $LASTEXITCODE" }
       - name: Upload Windows executable
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: DentalPhotoSorter-Windows
           path: dist/DentalPhotoSorter.exe
           retention-days: 90
+          if-no-files-found: warn
