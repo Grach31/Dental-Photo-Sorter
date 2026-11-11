@@ -14,7 +14,7 @@ Local-first Windows dental photo organizer (prototype).
 - Local-only database with stable record IDs; future synchronization remains disabled.
 
 ## Windows
-Open [Windows build workflow](../../actions/workflows/windows.yml). After a **successful** run, download the `DentalPhotoSorter-Windows` artifact and extract the EXE. ExifTool and Tesseract are **not bundled**. See [installation guide](docs/INSTALL-WINDOWS.md).
+Open [Windows builds](https://github.com/Grach31/Dental-Photo-Sorter/actions). After a **successful** run, download the `DentalPhotoSorter-Windows` artifact and extract the EXE. ExifTool and Tesseract are **not bundled**. See [installation guide](docs/INSTALL-WINDOWS.md).
 
 ## Privacy
 Do not commit patient photos, names, schedules, exports, or SQLite databases. The current prototype does not encrypt local storage. Protect the workstation and back up both the database and image archive. Do not use as the sole clinical archive without validation and an approved data-protection process.
