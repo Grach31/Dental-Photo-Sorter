@@ -4,6 +4,7 @@ import hashlib
 import json
 import re
 import shutil
+import sys
 import subprocess
 import uuid
 from dataclasses import dataclass
@@ -49,6 +50,10 @@ def read_metadata(paths: list[Path], exiftool: str = "exiftool", offset_minutes:
     """Read EXIF in batches to avoid Windows command-line length limits."""
     if not paths:
         return []
+    if exiftool == "exiftool":
+        bundled = Path(getattr(sys, "_MEIPASS", "")) / "exiftool" / "exiftool.exe"
+        if bundled.is_file():
+            exiftool = str(bundled)
     by_path = {}
     for begin in range(0, len(paths), 80):
         batch = paths[begin:begin + 80]
