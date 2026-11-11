@@ -7,6 +7,7 @@ from unittest.mock import patch
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import QDate
 from dental_photo_sorter.core import Photo
 
 def test_gui_preview_and_archive(tmp_path, monkeypatch):
@@ -20,7 +21,7 @@ def test_gui_preview_and_archive(tmp_path, monkeypatch):
     (card / "synthetic.jpg").write_bytes(b"not-a-real-jpeg")
     window.source = card
     window.dest.setText(str(tmp_path / "archive"))
-    window.date.setDate(window.date.date().fromString("2026-11-11", "yyyy-MM-dd"))
+    window.date.setDate(QDate(2026, 11, 11))
     window.schedule.setPlainText("09:00-10:00 Test Patient")
     fake = [Photo(card / "synthetic.jpg", datetime(2026, 11, 11, 9, 30), "Canon")]
     with patch.object(module, "read_metadata", return_value=fake):
