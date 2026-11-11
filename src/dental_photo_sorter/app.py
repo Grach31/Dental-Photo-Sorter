@@ -19,6 +19,7 @@ from .ocr import recognize
 from .preview import preview_bytes
 from .validation import validate_paths, require_unique_appointments
 from .archive import list_visits, list_photos, verify_archive, export_manifest, backup_database
+from .diagnostics import diagnostics
 
 APP_DIR = Path.home() / "Documents" / "DentalPhotoSorter"
 
@@ -119,8 +120,19 @@ class MainWindow(QMainWindow):
         s.addWidget(QLabel("База и фото хранятся на этом компьютере.\n"
                            "Общая синхронизация ещё не реализована.\n"
                            "Не копируй файл SQLite в общую синхронизируемую папку."))
+        check_dependencies = QPushButton("Проверить ExifTool и Tesseract")
+        check_dependencies.clicked.connect(self.check_dependencies)
+        s.addWidget(check_dependencies)
         s.addStretch()
         self.tabs.addTab(settings, "Синхронизация")
+
+    def check_dependencies(self):
+        results = diagnostics()
+        QMessageBox.information(
+            self, "Проверка компонентов",
+            "\\n".join(("✓ " if ok else "✗ ") + message for ok, message in results)
+            + "\\nExifTool нужен для времени съёмки и RAW; Tesseract — для OCR."
+        )
 
     def refresh_archive(self, *_):
         rows = list_visits(self.db, self.archive_search.text())
@@ -250,6 +262,8 @@ class MainWindow(QMainWindow):
     def import_photos(self):
         if not self.photos or self.table.rowCount() != len(self.photos):
             return self.error("Сначала проверь распределение.")
+        if self.source is None or not self.source.is_dir():
+            return self.error("Исходная папка больше не доступна.")
         if self.preview_signature != (self.schedule.toPlainText(), self.date.date().toString("yyyy-MM-dd"), self.offset.value(), self.clinic.text(), self.dest.text()):
             return self.error("Настройки изменились после проверки. Нажми «Проверить распределение» ещё раз.")
         chosen = [(photo, self.table.cellWidget(i, 3).currentData()) for i, photo in enumerate(self.photos)]
