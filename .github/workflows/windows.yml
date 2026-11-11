@@ -18,12 +18,9 @@ jobs:
       - name: Compile all Python sources
         run: python -m compileall -q src tests
       - name: Run tests
-        run: python -m pytest -q
-      - name: Qt offscreen GUI and archive tests
         env:
           QT_QPA_PLATFORM: offscreen
-        run: |
-          python -m pytest -q
+        run: python -m pytest -q
       - name: Build portable executable
         run: pyinstaller --noconfirm --onefile --windowed --name DentalPhotoSorter --paths src src/dental_photo_sorter/__main__.py
       - name: Verify bundled app can import
