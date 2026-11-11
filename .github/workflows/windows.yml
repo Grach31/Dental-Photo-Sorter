@@ -28,8 +28,10 @@ jobs:
           $page = Invoke-WebRequest -Uri 'https://exiftool.org/' -UseBasicParsing
           $match = [regex]::Match($page.Content, 'exiftool-[0-9.]+_64\.zip')
           if (-not $match.Success) { throw 'ExifTool Windows archive not found on official website' }
-          $url = 'https://sourceforge.net/projects/exiftool/files/' + $match.Value + '/download'
+          $url = 'https://downloads.sourceforge.net/project/exiftool/' + $match.Value
           Invoke-WebRequest -Uri $url -OutFile exiftool.zip -MaximumRedirection 10
+          $zip = [System.IO.File]::ReadAllBytes((Resolve-Path exiftool.zip))
+          if ($zip.Length -lt 100000 -or $zip[0] -ne 80 -or $zip[1] -ne 75) { throw "ExifTool download is not a ZIP: $url" }
           Expand-Archive -Path exiftool.zip -DestinationPath exiftool-unpacked -ErrorAction Stop
           $binary = Get-ChildItem exiftool-unpacked -Recurse -Filter 'exiftool(-k).exe' | Select-Object -First 1
           if (-not $binary) { throw 'ExifTool executable missing from archive' }
