@@ -30,6 +30,7 @@ class MainWindow(QMainWindow):
         self.photos = []
         self.appointments = []
         self.source = None
+        self.preview_signature = None
         self.db = connect(APP_DIR / "index.sqlite")
         self.tabs = QTabWidget()
         self.setCentralWidget(self.tabs)
@@ -136,13 +137,13 @@ class MainWindow(QMainWindow):
         if row < 0 or row >= len(self.visit_ids):
             return
         photos = list_photos(self.db, self.visit_ids[row])
-        self.visit_files.setPlainText("\\n".join(f"{name} | {captured or 'Нет EXIF'} | {path}" for path, name, captured, _ in photos))
+        self.visit_files.setPlainText("\n".join(f"{name} | {captured or 'Нет EXIF'} | {path}" for path, name, captured, _ in photos))
 
     def verify_files(self):
         try:
             errors = verify_archive(self.db)
             if errors:
-                self.error(f"Проблемных файлов: {len(errors)}\\n" + "\\n".join(f"{reason}: {path}" for path, reason in errors[:10]))
+                self.error(f"Проблемных файлов: {len(errors)}\n" + "\n".join(f"{reason}: {path}" for path, reason in errors[:10]))
             else:
                 QMessageBox.information(self, "Проверка", "Все зарегистрированные фотографии существуют и совпадают по SHA-256.")
         except Exception as exc:
@@ -187,6 +188,9 @@ class MainWindow(QMainWindow):
     def choose_source(self):
         folder = QFileDialog.getExistingDirectory(self, "SD-карта или папка DCIM")
         if folder:
+            self.photos = []
+            self.table.setRowCount(0)
+            self.preview_signature = None
             self.source = Path(folder)
             self.status.setText(f"Выбрана папка: {folder}")
 
@@ -194,6 +198,9 @@ class MainWindow(QMainWindow):
         if self.source is None:
             return self.error("Сначала выбери карту памяти или папку.")
         try:
+            self.photos = []
+            self.preview_signature = None
+            self.table.setRowCount(0)
             self.appointments = parse_schedule(self.schedule.toPlainText(), self.date.date().toString("yyyy-MM-dd"))
             require_unique_appointments(self.appointments)
             validate_paths(self.source, Path(self.dest.text()).expanduser())
@@ -257,12 +264,11 @@ class MainWindow(QMainWindow):
             return
         count = 0
         try:
+            archive_root = Path(self.dest.text()).expanduser().resolve()
+            validate_paths(self.source, archive_root)
             for photo, index in selected:
                 appt = self.appointments[index]
                 day = appt.start.strftime("%Y-%m-%d")
-                archive_root = Path(self.dest.text()).expanduser().resolve()
-                if not self.dest.text().strip() or archive_root == self.source.resolve() or self.source.resolve() in archive_root.parents:
-                    raise ValueError("Архив нельзя размещать внутри папки исходных фотографий.")
                 destination = archive_root / safe_name(self.clinic.text()) / day / safe_name(f"{appt.start:%H-%M}_{appt.name}")
                 target, digest = copy_verified(photo, destination)
                 # A visit is identified by clinic/date/start/name locally; no cross-device identity inference.
