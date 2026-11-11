@@ -11,11 +11,14 @@ from PySide6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QDateEdit, QFileDialog, QFormLayout,
     QHBoxLayout, QLabel, QLineEdit, QMainWindow, QMessageBox, QPushButton,
     QSpinBox, QTableWidget, QTableWidgetItem, QTabWidget, QTextEdit, QVBoxLayout,
-    QWidget,
+    QWidget, QInputDialog,
 )
 from .core import parse_schedule, scan_folder, read_metadata, match, safe_name, copy_verified
 from .database import connect
 from .ocr import recognize
+from .preview import preview_bytes
+from .validation import validate_paths, require_unique_appointments
+from .archive import list_visits, list_photos, verify_archive, export_manifest, backup_database
 
 APP_DIR = Path.home() / "Documents" / "DentalPhotoSorter"
 
@@ -78,6 +81,34 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.image_preview)
         self.table.itemSelectionChanged.connect(self.show_photo)
         self.tabs.addTab(main, "Импорт")
+        archive = QWidget()
+        archive_layout = QVBoxLayout(archive)
+        archive_actions = QHBoxLayout()
+        for title, callback in [
+            ("Обновить архив", self.refresh_archive),
+            ("Проверить целостность", self.verify_files),
+            ("Экспорт CSV", self.export_csv),
+            ("Резервная копия базы", self.backup_db),
+        ]:
+            button = QPushButton(title)
+            button.clicked.connect(callback)
+            archive_actions.addWidget(button)
+        archive_layout.addLayout(archive_actions)
+        self.archive_search = QLineEdit()
+        self.archive_search.setPlaceholderText("Поиск по пациенту")
+        self.archive_search.textChanged.connect(self.refresh_archive)
+        archive_layout.addWidget(self.archive_search)
+        self.visits_table = QTableWidget(0, 4)
+        self.visits_table.setHorizontalHeaderLabels(["Пациент", "Кабинет", "Дата приёма", "Фото"])
+        self.visits_table.horizontalHeader().setStretchLastSection(True)
+        self.visits_table.itemSelectionChanged.connect(self.show_visit)
+        archive_layout.addWidget(self.visits_table)
+        self.visit_files = QTextEdit()
+        self.visit_files.setReadOnly(True)
+        self.visit_files.setMaximumHeight(160)
+        archive_layout.addWidget(self.visit_files)
+        self.tabs.addTab(archive, "Архив")
+        self.refresh_archive()
 
         settings = QWidget()
         s = QVBoxLayout(settings)
@@ -89,6 +120,52 @@ class MainWindow(QMainWindow):
                            "Не копируй файл SQLite в общую синхронизируемую папку."))
         s.addStretch()
         self.tabs.addTab(settings, "Синхронизация")
+
+    def refresh_archive(self, *_):
+        rows = list_visits(self.db, self.archive_search.text())
+        self.visit_ids = [row[0] for row in rows]
+        self.visits_table.setRowCount(len(rows))
+        for i, (_, patient, clinic, date, count) in enumerate(rows):
+            for j, value in enumerate((patient, clinic, date, str(count))):
+                item = QTableWidgetItem(value)
+                item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                self.visits_table.setItem(i, j, item)
+
+    def show_visit(self):
+        row = self.visits_table.currentRow()
+        if row < 0 or row >= len(self.visit_ids):
+            return
+        photos = list_photos(self.db, self.visit_ids[row])
+        self.visit_files.setPlainText("\\n".join(f"{name} | {captured or 'Нет EXIF'} | {path}" for path, name, captured, _ in photos))
+
+    def verify_files(self):
+        try:
+            errors = verify_archive(self.db)
+            if errors:
+                self.error(f"Проблемных файлов: {len(errors)}\\n" + "\\n".join(f"{reason}: {path}" for path, reason in errors[:10]))
+            else:
+                QMessageBox.information(self, "Проверка", "Все зарегистрированные фотографии существуют и совпадают по SHA-256.")
+        except Exception as exc:
+            self.error(exc)
+
+    def export_csv(self):
+        path, _ = QFileDialog.getSaveFileName(self, "Экспорт списка", "dental_manifest.csv", "CSV (*.csv)")
+        if path:
+            try:
+                count = export_manifest(self.db, Path(path))
+                QMessageBox.information(self, "Экспорт", f"Экспортировано {count} записей. CSV содержит данные пациентов, храни локально.")
+            except Exception as exc:
+                self.error(exc)
+
+    def backup_db(self):
+        name = datetime.now().strftime("dental-db-%Y%m%d-%H%M%S.sqlite")
+        path, _ = QFileDialog.getSaveFileName(self, "Резервная копия базы (без фотографий)", name, "SQLite (*.sqlite)")
+        if path:
+            try:
+                backup_database(self.db, Path(path))
+                QMessageBox.information(self, "Копия создана", "База сохранена. Фотографии необходимо резервировать отдельно.")
+            except Exception as exc:
+                self.error(exc)
 
     def error(self, exc):
         QMessageBox.warning(self, "Проверь данные", str(exc))
@@ -118,6 +195,8 @@ class MainWindow(QMainWindow):
             return self.error("Сначала выбери карту памяти или папку.")
         try:
             self.appointments = parse_schedule(self.schedule.toPlainText(), self.date.date().toString("yyyy-MM-dd"))
+            require_unique_appointments(self.appointments)
+            validate_paths(self.source, Path(self.dest.text()).expanduser())
             paths = scan_folder(self.source)
             if not paths:
                 raise ValueError("В выбранной папке нет поддерживаемых фотографий.")
@@ -150,10 +229,12 @@ class MainWindow(QMainWindow):
             self.image_preview.setText("Фотография не выбрана")
             return
         photo = self.photos[row]
-        if photo.path.suffix.lower() not in (".jpg", ".jpeg", ".png"):
-            self.image_preview.setText("Предпросмотр RAW пока недоступен. Проверь имя и время.")
+        data = preview_bytes(photo.path)
+        if not data:
+            self.image_preview.setText("Для этого файла нет доступного предпросмотра.")
             return
-        pixmap = QPixmap(str(photo.path))
+        pixmap = QPixmap()
+        pixmap.loadFromData(data)
         if pixmap.isNull():
             self.image_preview.setText("Не удалось открыть изображение")
             return
@@ -193,6 +274,7 @@ class MainWindow(QMainWindow):
                     self.db.execute("INSERT OR IGNORE INTO visits VALUES (?, ?, ?, ?, ?, ?)", (visit_id, patient_id, self.clinic.text(), appt.start.isoformat(), appt.end.isoformat(), now))
                     self.db.execute("INSERT OR IGNORE INTO photos VALUES (?, ?, ?, ?, ?, ?, ?)", (str(uuid.uuid5(uuid.NAMESPACE_URL, str(target))), visit_id, photo.path.name, photo.captured.isoformat() if photo.captured else None, digest, str(target), photo.camera))
                 count += 1
+            self.refresh_archive()
             QMessageBox.information(self, "Готово", f"Скопировано или проверено {count} фото. Оригиналы на SD-карте сохранены.")
         except Exception as exc:
             self.error(f"Импорт остановлен после {count} файлов: {exc}")
